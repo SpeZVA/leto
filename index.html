@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Что-то крутое</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lobster&family=Nunito:wght@400;700&family=Poppins:wght@300;700&display=swap');
+
+        :root {
+            --timer-bg-start: #0f0c29;
+            --timer-bg-mid: #302b63;
+            --timer-bg-end: #24243e;
+            --timer-text: #ffffff;
+            --timer-glow: rgba(137, 227, 240, 0.75);
+            --star-color: rgba(255, 255, 255, 0.8);
+            --line-color: rgba(137, 227, 240, 0.15);
+            --accent-color: #c1b3e6;
+            --particle-color: #ceb9f8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            height: 100svh;
+            overflow: hidden;
+            position: relative;
+            background: radial-gradient(ellipse at bottom, var(--timer-bg-start) 0%, var(--timer-bg-mid) 50%, var(--timer-bg-end) 100%);
+            transition: background 1s ease-in-out;
+            cursor: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #cursor-dot,
+        #cursor-ring {
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out, border-color 0.2s ease-out, background-color 0.2s ease-out;
+        }
+
+        #cursor-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+        }
+
+        #cursor-ring {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--accent-color);
+            opacity: 0.7;
+        }
+
+        body:hover .btn {
+            cursor: none;
+        }
+
+        #stars-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            transition: opacity 1s ease;
+        }
+
+        #stars-canvas.fade-out {
+            opacity: 0;
+        }
+
+        .page-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: opacity 1s ease-in-out;
+            padding: 20px;
+        }
+
+        #countdown-container {
+            font-family: 'Poppins', sans-serif;
+            color: var(--timer-text);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #countdown-container h2 {
+            font-weight: 300;
+            font-size: 2.8rem;
+            margin-bottom: 40px;
+            z-index: 2;
+            animation: text-glow 4s ease-in-out infinite;
+            transition: opacity 0.5s ease;
+        }
+
+        @keyframes text-glow {
+            0% {
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--timer-glow), 0 0 40px var(--timer-glow);
+            }
+
+            50% {
+                text-shadow: 0 0 20px #fff, 0 0 30px var(--timer-glow), 0 0 40px var(--timer-glow), 0 0 50px var(--timer-glow);
+            }
+
+            100% {
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--timer-glow), 0 0 40px var(--timer-glow);
+            }
+        }
+
+        .timer {
+            display: flex;
+            gap: 25px;
+            z-index: 2;
+            transition: opacity 0.5s ease;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .time-block {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 15px;
+            min-width: 120px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: float 6s ease-in-out infinite;
+            pointer-events: auto;
+        }
+
+        #days-block {
+            animation-delay: 0s;
+        }
+
+        #hours-block {
+            animation-delay: -1.5s;
+        }
+
+        #minutes-block {
+            animation-delay: -3s;
+        }
+
+        #seconds-block {
+            animation-delay: -4.5s;
+        }
+
+        .time-block:hover {
+            transform: translateY(-10px) scale(1.05) !important;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 20px var(--timer-glow);
+            animation-play-state: paused;
+        }
+
+        .time-block .number {
+            font-size: 4.5rem;
+            font-weight: 700;
+            line-height: 1;
+            text-shadow: 0 0 10px var(--timer-glow);
+            transition: text-shadow 0.3s ease;
+        }
+
+        .time-block .label {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0.7;
+            margin-top: 10px;
+            display: block;
+        }
+
+        .time-block.tick {
+            animation: tick-pop 0.2s ease-out, float 6s ease-in-out infinite;
+            animation-play-state: running, paused;
+        }
+
+        .time-block.final-tick {
+            animation: final-tick-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes final-tick-pop {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), 0 0 20px var(--timer-glow);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .time-block.tick:hover {
+            animation-play-state: paused, paused;
+        }
+
+        @keyframes tick-pop {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+                color: var(--accent-color);
+                text-shadow: 0 0 20px var(--accent-color);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        #score-counter {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--timer-text);
+            text-shadow: 0 0 10px var(--timer-glow);
+            z-index: 10;
+            transition: opacity 0.5s ease;
+        }
+
+        #compliment-popup {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translate(-50%, 0) scale(0.8);
+            background: rgba(36, 36, 62, 0.8);
+            backdrop-filter: blur(8px);
+            padding: 20px 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(190, 158, 255, 0.3);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            font-family: 'Lobster', cursive;
+            font-size: 2.5rem;
+            color: var(--particle-color);
+            text-shadow: 0 0 15px var(--timer-glow), 0 0 25px #fff;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 11;
+            text-align: center;
+        }
+
+        #compliment-popup.show {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1);
+        }
+
+        #minigame-win-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 8, 25, 0.6);
+            backdrop-filter: blur(12px) saturate(150%);
+            -webkit-backdrop-filter: blur(12px) saturate(150%);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeInBackdrop 1s ease forwards;
+        }
+
+        @keyframes fadeInBackdrop {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #minigame-win-screen .confirmation-box {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 580px;
+            padding: 50px 40px;
+            background: linear-gradient(160deg, #1e1346 0%, #0f0c29 100%);
+            border-radius: 24px;
+            border: 1px solid rgba(193, 179, 230, 0.4);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.3),
+                0 0 20px rgba(193, 179, 230, 0.3),
+                inset 0 0 15px rgba(15, 12, 41, 0.9);
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+            animation: popInModal 0.8s 0.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+        }
+
+        @keyframes popInModal {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        #minigame-win-screen .confirmation-box::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background-image: radial-gradient(circle, #FFF 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: 0 0;
+            opacity: 0.2;
+            animation: moveStars 60s linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes moveStars {
+            from {
+                transform: translate(0, 0);
+            }
+
+            to {
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        #minigame-win-screen .confirmation-box>* {
+            position: relative;
+            z-index: 1;
+        }
+
+        #minigame-win-screen h2 {
+            font-family: 'Lobster', cursive;
+            font-size: 3rem;
+            line-height: 1.3;
+            color: var(--accent-color);
+            text-shadow: 0 0 8px rgba(193, 179, 230, 0.8), 0 0 20px rgba(255, 255, 255, 0.5);
+            margin-bottom: 25px;
+        }
+
+        #minigame-win-screen p {
+            font-family: 'Nunito', sans-serif;
+            font-size: 1.25rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 400;
+            margin-top: 20px;
+        }
+
+        #console-container {
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            align-items: flex-start;
+            justify-content: flex-start;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        #console-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            padding: 20px;
+            height: 100%;
+            width: 100%;
+        }
+
+        #console-text::after {
+            content: '_';
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+
+            #cursor-dot,
+            #cursor-ring {
+                display: none;
+            }
+
+            body {
+                cursor: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #countdown-container h2 {
+                font-size: 1.8rem;
+                margin-bottom: 25px;
+            }
+
+            .timer {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .time-block {
+                min-width: 200px;
+                width: 200px;
+                padding: 15px;
+                animation-name: none;
+            }
+
+            .time-block:hover {
+                animation-play-state: unset;
+                transform: none !important;
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 20px var(--timer-glow);
+            }
+
+            .time-block .number {
+                font-size: 3rem;
+            }
+
+            .time-block .label {
+                font-size: 0.8rem;
+                letter-spacing: 2px;
+                margin-top: 5px;
+            }
+
+            #compliment-popup {
+                font-size: 1.5rem;
+                padding: 15px 25px;
+                top: 20px;
+                width: 90%;
+            }
+
+            #score-counter {
+                font-size: 1.2rem;
+                top: 10px;
+                right: 15px;
+            }
+
+            #minigame-win-screen .confirmation-box {
+                padding: 30px 20px;
+                border-radius: 16px;
+            }
+
+            #minigame-win-screen h2 {
+                font-size: 2.2rem;
+            }
+
+            #minigame-win-screen p {
+                font-size: 1rem;
+            }
+
+            #console-text {
+                font-size: 1rem;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+    <audio id="ambient-sound" loop src="https://zvukipro.com/uploads/files/2019-10/1571989928_9c12c44ef.mp3"></audio>
+    <audio id="click-sound" src="https://zvukogram.com/mp3/p2/1628/mech-klinok-3-32469.mp3"></audio>
+    <audio id="win-music" src="https://alexbruni.ru/afx/audiofiles/207/104396314.mp3"></audio>
+    <audio id="typing-sound" src="https://cdn.freesound.org/previews/254/254316_4284969-lq.mp3"></audio>
+
+    <canvas id="stars-canvas"></canvas>
+    <div id="cursor-dot"></div>
+    <div id="cursor-ring"></div>
+
+    <div id="countdown-container" class="page-container">
+        <h2>Обратный отсчёт...</h2>
+        <div class="timer">
+            <div id="days-block" class="time-block">
+                <span id="days" class="number">00</span>
+                <span class="label">Дней</span>
+            </div>
+            <div id="hours-block" class="time-block">
+                <span id="hours" class="number">00</span>
+                <span class="label">Часов</span>
+            </div>
+            <div id="minutes-block" class="time-block">
+                <span id="minutes" class="number">00</span>
+                <span class="label">Минут</span>
+            </div>
+            <div id="seconds-block" class="time-block">
+                <span id="seconds" class="number">00</span>
+                <span class="label">Секунд</span>
+            </div>
+        </div>
+        <div id="score-counter" class="hidden">Звёзды: 0</div>
+        <div id="compliment-popup"></div>
+    </div>
+
+    <div id="console-container" class="page-container hidden">
+        <pre id="console-text"></pre>
+    </div>
+
+    <div id="minigame-win-screen" class="confirmation">
+        <div class="confirmation-box">
+            <h2>Ты выбила свой возраст) Сорри </h2>
+            <p>И вообще, помни одну вещь - самая лучшая звезда на небе — это ты, Карина! Помни об этом всегда и везде,
+                живи, кайфуй и радуйся моменту </p>
+        </div>
+    </div>
+
+    <script>
+        const countdownContainer = document.getElementById('countdown-container');
+        const targetDate = new Date('2025-08-04T09:30:00+03:00').getTime();
+
+        const daysEl = document.getElementById('days');
+        const hoursEl = document.getElementById('hours');
+        const minutesEl = document.getElementById('minutes');
+        const secondsEl = document.getElementById('seconds');
+        const secondsBlock = secondsEl.closest('.time-block');
+        let lastSeconds = -1;
+        let countdownInterval;
+
+        const starsCanvas = document.getElementById('stars-canvas');
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = targetDate - now;
+
+            if (distance <= 0) {
+                clearInterval(countdownInterval);
+                showCountdownFinishedAnimation();
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            if (seconds !== lastSeconds) {
+                if (secondsBlock) {
+                    secondsBlock.classList.add('tick');
+                    setTimeout(() => secondsBlock.classList.remove('tick'), 200);
+                }
+                lastSeconds = seconds;
+            }
+
+            daysEl.innerText = String(days).padStart(2, '0');
+            hoursEl.innerText = String(hours).padStart(2, '0');
+            minutesEl.innerText = String(minutes).padStart(2, '0');
+            secondsEl.innerText = String(seconds).padStart(2, '0');
+        }
+
+        function showCountdownFinishedAnimation() {
+            document.getElementById('score-counter').classList.add('hidden');
+            document.getElementById('compliment-popup').classList.add('hidden');
+            if (shootingStarInterval) clearInterval(shootingStarInterval);
+
+            document.querySelector('#countdown-container h2').textContent = "Отсчёт уже завершён...";
+
+            const timeElements = [daysEl, hoursEl, minutesEl, secondsEl];
+            const spinnerInterval = setInterval(() => {
+                timeElements.forEach(el => {
+                    el.textContent = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+                });
+            }, 60);
+
+            setTimeout(() => {
+                clearInterval(spinnerInterval);
+                const timeBlocks = document.querySelectorAll('.time-block');
+                timeElements.forEach((el, index) => {
+                    el.textContent = '00';
+                    timeBlocks[index].classList.add('final-tick');
+                });
+                playClick();
+                setTimeout(() => {
+                    showConsole();
+                }, 1000);
+            }, 2500);
+        }
+
+        const canvas = document.getElementById('stars-canvas');
+        const ctx = canvas.getContext('2d');
+        let stars = [], particles = [], shootingStars = [];
+        let mouse = { x: null, y: null, max: 20000 };
+        let isWarping = false;
+        let draggedStar = null;
+
+        let score = 0;
+        const scoreCounterEl = document.getElementById('score-counter');
+        const complimentPopupEl = document.getElementById('compliment-popup');
+        const minigameWinScreenEl = document.getElementById('minigame-win-screen');
+        const winMusic = document.getElementById('win-music');
+
+        let shootingStarInterval;
+        const compliments = [
+            "Молодец, 2 штуки!", "А ты хороша, 4 штуки!", "Ну ты вообще лучшая, уже 6!", "Вот это ты снайпер! 8 звёзд!",
+            "Ебейшая! Уже 10!", "Красотка, целых 12!", "Ты просто космос! 14!", "Мастер звёздной охоты! 16!",
+            "Давай, тыкай на эти лучшие звёзды, уже 18!", "Легенда! 20 звёзд!"
+        ];
+
+        let complimentQueue = [];
+        let isComplimentDisplaying = false;
+        const COMPLIMENT_DURATION = 3000;
+
+        const ambientSound = document.getElementById('ambient-sound');
+        const clickSound = document.getElementById('click-sound');
+        let isAudioInitialized = false;
+
+        function initAudio() {
+            if (isAudioInitialized) return;
+            ambientSound.volume = 0.2;
+            ambientSound.play().catch(e => console.log("Autoplay blocked"));
+            clickSound.volume = 0.1;
+            isAudioInitialized = true;
+        }
+
+        function playClick() {
+            clickSound.currentTime = 0;
+            clickSound.play();
+        }
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            mouse = { x: canvas.width / 2, y: canvas.height / 2, max: canvas.width > 768 ? 20000 : 10000 };
+            stars = [];
+            let starsCount = (canvas.width * canvas.height) / (canvas.width > 768 ? 10000 : 7000);
+            for (let i = 0; i < starsCount; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.5 + 1,
+                    vx: isWarping ? 0 : Math.random() * 0.4 - 0.2, vy: isWarping ? 0 : Math.random() * 0.4 - 0.2
+                });
+            }
+            if (!isWarping) { shootingStars = []; particles = []; }
+        }
+        let animationFrameId;
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const starColor = getComputedStyle(document.documentElement).getPropertyValue('--star-color').trim();
+            const lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color').trim();
+            const particleColor = getComputedStyle(document.documentElement).getPropertyValue('--particle-color').trim();
+            ctx.fillStyle = starColor;
+            stars.forEach(star => {
+                ctx.beginPath(); ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); ctx.fill();
+                if (star !== draggedStar) { star.x += star.vx; star.y += star.vy; }
+                if (!isWarping) {
+                    if (star.x < 0 || star.x > canvas.width) star.vx = -star.vx;
+                    if (star.y < 0 || star.y > canvas.height) star.vy = -star.vy;
+                }
+            });
+            ctx.strokeStyle = lineColor; ctx.lineWidth = 0.3;
+            for (let i = 0; i < stars.length; i++) {
+                for (let j = i; j < stars.length; j++) {
+                    let dist = (stars[i].x - stars[j].x) ** 2 + (stars[i].y - stars[j].y) ** 2;
+                    if (dist < mouse.max) { ctx.beginPath(); ctx.moveTo(stars[i].x, stars[i].y); ctx.lineTo(stars[j].x, stars[j].y); ctx.stroke(); }
+                }
+            }
+            ctx.strokeStyle = starColor; ctx.lineWidth = 3;
+            shootingStars.forEach((s, i) => {
+                ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.len * Math.cos(s.angle), s.y - s.len * Math.sin(s.angle));
+                ctx.globalAlpha = s.life; ctx.stroke(); ctx.globalAlpha = 1;
+                s.x += s.speed * Math.cos(s.angle); s.y += s.speed * Math.sin(s.angle); s.life -= 0.015;
+                if (s.life <= 0 || s.x < -s.len || s.x > canvas.width + s.len || s.y < -s.len || s.y > canvas.height + s.len) shootingStars.splice(i, 1);
+            });
+            ctx.fillStyle = particleColor;
+            particles.forEach((p, i) => {
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2); ctx.globalAlpha = p.life; ctx.fill(); ctx.globalAlpha = 1;
+                p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        const consoleContainer = document.getElementById('console-container');
+        const consoleTextEl = document.getElementById('console-text');
+        const typingSound = document.getElementById('typing-sound');
+
+        function showConsole() {
+            isWarping = true;
+            if (shootingStarInterval) clearInterval(shootingStarInterval);
+
+            let fadeAudio = setInterval(function () {
+                if (ambientSound.volume > 0.05) {
+                    ambientSound.volume -= 0.05;
+                } else {
+                    ambientSound.pause();
+                    clearInterval(fadeAudio);
+                }
+            }, 100);
+
+            document.querySelector('#countdown-container h2').style.opacity = 0;
+            document.querySelector('.timer').style.opacity = 0;
+            scoreCounterEl.style.opacity = 0;
+            complimentPopupEl.style.opacity = 0;
+            starsCanvas.classList.add('fade-out');
+            document.getElementById('cursor-dot').classList.add('hidden');
+            document.getElementById('cursor-ring').classList.add('hidden');
+            document.body.style.cursor = 'default';
+
+            setTimeout(() => {
+                countdownContainer.style.opacity = '0';
+                consoleContainer.classList.remove('hidden');
+
+                setTimeout(() => {
+                    countdownContainer.classList.add('hidden');
+                    isWarping = false;
+                    cancelAnimationFrame(animationFrameId);
+                    const textToType = "ты нахуя в код полез... балбес. Тут ничего нет)))) я же не тупой";
+                    typeWriter(textToType, 0);
+                }, 1000);
+
+            }, 1200);
+        }
+
+        function typeWriter(txt, i) {
+            if (i < txt.length) {
+                consoleTextEl.innerHTML += txt.charAt(i);
+                typingSound.volume = 0.5;
+                typingSound.currentTime = 0;
+                typingSound.play().catch(e => { });
+                i++;
+                setTimeout(() => typeWriter(txt, i), 100);
+            }
+        }
+
+
+        function processComplimentQueue() {
+            if (isComplimentDisplaying || complimentQueue.length === 0) return;
+            isComplimentDisplaying = true;
+            const complimentText = complimentQueue.shift();
+            complimentPopupEl.textContent = complimentText;
+            complimentPopupEl.classList.add('show');
+            setTimeout(() => {
+                complimentPopupEl.classList.remove('show');
+                setTimeout(() => {
+                    isComplimentDisplaying = false;
+                    processComplimentQueue();
+                }, 400);
+            }, COMPLIMENT_DURATION);
+        }
+
+        function showWinScreen() {
+            clearInterval(shootingStarInterval);
+            let fadeAudio = setInterval(function () {
+                if (ambientSound.volume > 0.05) {
+                    ambientSound.volume -= 0.05;
+                } else {
+                    ambientSound.pause();
+                    clearInterval(fadeAudio);
+                }
+            }, 100);
+            winMusic.currentTime = 0;
+            winMusic.play().catch(e => console.error("Не удалось воспроизвести музыку победы:", e));
+            minigameWinScreenEl.style.display = 'flex';
+
+            setTimeout(() => {
+                minigameWinScreenEl.style.display = 'none';
+                winMusic.pause();
+                winMusic.currentTime = 0;
+                if (!isWarping && !countdownContainer.classList.contains('hidden')) {
+                    ambientSound.play();
+                    shootingStarInterval = setInterval(createShootingStar, 1200);
+                }
+            }, 10000);
+        }
+
+        function handleStarCatch(star, index) {
+            playClick(); createParticles(star.x, star.y); shootingStars.splice(index, 1);
+            score++;
+            scoreCounterEl.classList.remove('hidden');
+            scoreCounterEl.textContent = `Звёзды: ${score}`;
+            if (score >= 20) { showWinScreen(); }
+            else if (score > 0 && score % 2 === 0) {
+                const complimentText = compliments[(score / 2) - 1];
+                if (complimentText) { complimentQueue.push(complimentText); processComplimentQueue(); }
+            }
+        }
+
+        function createShootingStar() {
+            if (shootingStars.length > 5) return;
+            const side = Math.floor(Math.random() * 4); let x, y, angle;
+            if (side === 0) { x = 0; y = Math.random() * canvas.height; angle = Math.random() * Math.PI - Math.PI / 2; }
+            else if (side === 1) { x = canvas.width; y = Math.random() * canvas.height; angle = Math.random() * Math.PI + Math.PI / 2; }
+            else if (side === 2) { x = Math.random() * canvas.width; y = 0; angle = Math.random() * Math.PI; }
+            else { x = Math.random() * canvas.width; y = canvas.height; angle = Math.random() * Math.PI - Math.PI; }
+            shootingStars.push({ x, y, len: Math.random() * 100 + 40, angle, speed: Math.random() * 3 + 2, life: 1 });
+        }
+
+        function createParticles(x, y) {
+            for (let i = 0; i < 20; i++) {
+                particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4, life: 1, radius: Math.random() * 2 + 1 });
+            }
+        }
+
+        function handleCanvasClick(clientX, clientY) {
+            if (minigameWinScreenEl.style.display === 'flex') return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = clientX - rect.left; const clickY = clientY - rect.top; const hitBoxPadding = 15;
+            for (let i = shootingStars.length - 1; i >= 0; i--) {
+                const s = shootingStars[i]; const headX = s.x; const headY = s.y;
+                const tailX = s.x - s.len * Math.cos(s.angle); const tailY = s.y - s.len * Math.sin(s.angle);
+                const d1 = Math.sqrt((clickX - headX) ** 2 + (clickY - headY) ** 2);
+                const d2 = Math.sqrt((clickX - tailX) ** 2 + (clickY - tailY) ** 2);
+                if (d1 + d2 >= s.len - hitBoxPadding && d1 + d2 <= s.len + hitBoxPadding) { handleStarCatch(s, i); return true; }
+            }
+            return false;
+        }
+
+        window.addEventListener('click', initAudio, { once: true });
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX; mouse.y = e.clientY;
+            const dot = document.getElementById('cursor-dot'); const ring = document.getElementById('cursor-ring');
+            dot.style.left = `${e.clientX}px`; dot.style.top = `${e.clientY}px`;
+            ring.style.left = `${e.clientX}px`; ring.style.top = `${e.clientY}px`;
+            if (draggedStar) { const rect = canvas.getBoundingClientRect(); draggedStar.x = e.clientX - rect.left; draggedStar.y = e.clientY - rect.top; }
+        });
+
+        window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
+        document.addEventListener('mousedown', () => document.getElementById('cursor-ring').style.transform = 'translate(-50%, -50%) scale(1.5)');
+        document.addEventListener('mouseup', () => document.getElementById('cursor-ring').style.transform = 'translate(-50%, -50%) scale(1)');
+        canvas.addEventListener('mousedown', e => {
+            if (handleCanvasClick(e.clientX, e.clientY)) return;
+            if (e.target.closest('.time-block') || draggedStar) { playClick(); return; }
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
+            let clickedOnStaticStar = false;
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const star = stars[i]; const dx = mouseX - star.x; const dy = mouseY - star.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < star.radius + 10) { draggedStar = star; draggedStar.vx = 0; draggedStar.vy = 0; clickedOnStaticStar = true; break; }
+            }
+            if (!clickedOnStaticStar) createParticles(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', e => {
+            if (draggedStar) { draggedStar.vx = (Math.random() - 0.5) * 0.4; draggedStar.vy = (Math.random() - 0.5) * 0.4; draggedStar = null; }
+        });
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); initAudio(); const touch = e.touches[0]; if (handleCanvasClick(touch.clientX, touch.clientY)) return; }, { passive: false });
+
+        function startPage() {
+            initCanvas();
+            animate();
+            const now = new Date().getTime();
+            if (now >= targetDate) { showCountdownFinishedAnimation(); }
+            else { shootingStarInterval = setInterval(createShootingStar, 1200); countdownInterval = setInterval(updateCountdown, 1000); updateCountdown(); }
+        }
+        window.addEventListener('resize', initCanvas);
+
+        startPage();
+
+    </script>
+
+</body>
+
+</html>
